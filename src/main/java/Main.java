@@ -17,17 +17,19 @@ public class Main {
         try {
           FileInputStream databaseFile = new FileInputStream(databaseFilePath);
 
-          databaseFile.skip(16); // Skip the first 16 bytes of the header
+          databaseFile.skipNBytes(16); // Skip the first 16 bytes of the header
           byte[] pageSizeBytes = new byte[2]; // The following 2 bytes are the page size
           databaseFile.read(pageSizeBytes);
           short pageSizeSigned = ByteBuffer.wrap(pageSizeBytes).getShort();
           int pageSize = Short.toUnsignedInt(pageSizeSigned);
+          byte[] pageHeader = new byte[2];
+          databaseFile.skipNBytes(85);
+          databaseFile.read(pageHeader);
+          short numberOfTablesSigned = ByteBuffer.wrap(pageHeader).getShort();
+          int numberOfTables = Short.toUnsignedInt(numberOfTablesSigned);
 
-          // You can use print statements as follows for debugging, they'll be visible when running tests.
-          System.err.println("Logs from your program will appear here!");
-
-          // TODO: Uncomment the code below to pass the first stage
            System.out.println("database page size: " + pageSize);
+           System.out.println("number of tables: " + numberOfTables);
         } catch (IOException e) {
           System.out.println("Error reading file: " + e.getMessage());
         }

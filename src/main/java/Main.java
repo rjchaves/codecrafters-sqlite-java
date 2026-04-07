@@ -9,16 +9,15 @@ void main(String[] args) {
 
     switch (command) {
         case ".dbinfo" -> {
-            try {
-                FileInputStream databaseFile = new FileInputStream(databaseFilePath);
+            try (RandomAccessFile databaseFile = new RandomAccessFile(databaseFilePath, "r")) {
 
-                databaseFile.skipNBytes(16); // Skip the first 16 bytes of the header
+                databaseFile.seek(16); // Skip the first 16 bytes of the header
                 byte[] pageSizeBytes = new byte[2]; // The following 2 bytes are the page size
                 databaseFile.read(pageSizeBytes);
                 short pageSizeSigned = ByteBuffer.wrap(pageSizeBytes).getShort();
                 int pageSize = Short.toUnsignedInt(pageSizeSigned);
                 byte[] pageHeader = new byte[2];
-                databaseFile.skipNBytes(85);
+                databaseFile.seek(103);
                 databaseFile.read(pageHeader);
                 short numberOfTablesSigned = ByteBuffer.wrap(pageHeader).getShort();
                 int numberOfTables = Short.toUnsignedInt(numberOfTablesSigned);

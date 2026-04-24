@@ -20,31 +20,34 @@ void main(String[] args) {
                 IO.println("Error reading file: " + e.getMessage());
             }
         }
-        case ".tables" -> {
-            try (RandomAccessFile databaseFile = new RandomAccessFile(databaseFilePath, "r")) {
-                int databaseSchemaCells = getDatabaseSchemaCells(databaseFile);
-                databaseFile.seek(108); // we know it is a leaf page so 8 bytesRead header
-                byte[][] cellsOffsets = new byte[databaseSchemaCells][];
-                for (int i = 0; i < databaseSchemaCells; i++) {
-                    cellsOffsets[i] = new byte[2];
-                    databaseFile.read(cellsOffsets[i]);
-                }
+        case ".tables" -> findAndPrintTableNames(databaseFilePath);
 
-                String result = Stream.of(cellsOffsets)
-                        .map(it -> {
-                            try {
-                                return Cell.fromBytes(databaseFile, 0, it).tblName;
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }).reduce("", (a, b) -> a + " " + b);
-                IO.println(result);
-
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
         default -> IO.println("Missing or invalid command passed: " + command);
+    }
+}
+
+private static void findAndPrintTableNames(String databaseFilePath) {
+    try (RandomAccessFile databaseFile = new RandomAccessFile(databaseFilePath, "r")) {
+        int databaseSchemaCells = getDatabaseSchemaCells(databaseFile);
+        databaseFile.seek(108); // we know it is a leaf page so 8 bytesRead header
+        byte[][] cellsOffsets = new byte[databaseSchemaCells][];
+        for (int i = 0; i < databaseSchemaCells; i++) {
+            cellsOffsets[i] = new byte[2];
+            databaseFile.read(cellsOffsets[i]);
+        }
+
+        String result = Stream.of(cellsOffsets)
+                .map(it -> {
+                    try {
+                        return SqliteSchemaCell.fromBytes(databaseFile, it).tblName;
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).reduce("", (a, b) -> a + " " + b);
+        IO.println(result);
+
+    } catch (IOException e) {
+        throw new RuntimeException(e);
     }
 }
 

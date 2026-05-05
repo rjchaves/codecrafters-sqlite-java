@@ -28,23 +28,6 @@ public class Utils {
         return result;
     }
 
-    public static String readRecord(RandomAccessFile databaseFile) throws IOException {
-        long filePointer = databaseFile.getFilePointer();
-        int recordHeaderSizeInBytes = readVarintFromBytes(databaseFile);
-        int sizeOfType = readVarintFromBytes(databaseFile);
-        int nameSizeType = readVarintFromBytes(databaseFile);
-        int tblNameSizeType = readVarintFromBytes(databaseFile);
-        int sqlType = readVarintFromBytes(databaseFile);
-
-        databaseFile.seek(filePointer+recordHeaderSizeInBytes);
-
-        databaseFile.skipBytes(getSerialTypeSize(sizeOfType) +
-                getSerialTypeSize(nameSizeType));
-
-        byte[] result = new byte[getSerialTypeSize(tblNameSizeType)];
-        databaseFile.read(result);
-        return new String(result);
-    }
 
     // https://www.sqlite.org/fileformat.html#schema_layer
     public static int getSerialTypeSize(int serialType) {

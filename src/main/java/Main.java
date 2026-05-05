@@ -1,4 +1,4 @@
-void main(String[] args) {
+void main(String[] args) throws IOException {
     if (args.length < 2) {
         IO.println("Missing <database path> and <command>");
         return;
@@ -22,33 +22,47 @@ void main(String[] args) {
         }
         case ".tables" -> findAndPrintTableNames(databaseFilePath);
 
+        // we are not building any AST for now we will keep it simple for the test cases
+        case String s when s.contains("SELECT COUNT(*) FROM") -> {
+            String[] s1 = s.split(" ");
+            var table = s1[s1.length - 1];
+            try (RandomAccessFile databaseFile = new RandomAccessFile(databaseFilePath, "r")) {
+                SqliteSchemaCell[] allSchemaCells = findAllSchemaCells(databaseFile);
+                Optional<SqliteSchemaCell> tableCellReference = Arrays.stream(allSchemaCells).filter(it -> it.schemaRecordData.tblName().equals(table)).findFirst();
+                Optional<Integer> rootPage = tableCellReference.map(it -> it.schemaRecordData.rootPage());
+            }
+        }
+
         default -> IO.println("Missing or invalid command passed: " + command);
     }
 }
 
 private static void findAndPrintTableNames(String databaseFilePath) {
     try (RandomAccessFile databaseFile = new RandomAccessFile(databaseFilePath, "r")) {
-        int databaseSchemaCells = getDatabaseSchemaCells(databaseFile);
-        databaseFile.seek(108); // we know it is a leaf page so 8 bytesRead header
-        byte[][] cellsOffsets = new byte[databaseSchemaCells][];
-        for (int i = 0; i < databaseSchemaCells; i++) {
-            cellsOffsets[i] = new byte[2];
-            databaseFile.read(cellsOffsets[i]);
-        }
-
+        SqliteSchemaCell[] cellsOffsets = findAllSchemaCells(databaseFile);
         String result = Stream.of(cellsOffsets)
-                .map(it -> {
-                    try {
-                        return SqliteSchemaCell.fromBytes(databaseFile, it).tblName;
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }).reduce("", (a, b) -> a + " " + b);
+                .map(it -> it.schemaRecordData.tblName())
+                .reduce("", (a, b) -> a + " " + b);
         IO.println(result);
 
     } catch (IOException e) {
         throw new RuntimeException(e);
     }
+}
+
+private static SqliteSchemaCell[] findAllSchemaCells(RandomAccessFile databaseFile) throws IOException {
+    int databaseSchemaCells = getDatabaseSchemaCells(databaseFile);
+    databaseFile.seek(108); // we know it is a leaf page so 8 bytesRead header
+    byte[][] cellsOffsets = new byte[databaseSchemaCells][];
+    for (int i = 0; i < databaseSchemaCells; i++) {
+        cellsOffsets[i] = new byte[2];
+        databaseFile.read(cellsOffsets[i]);
+    }
+    SqliteSchemaCell[] schemaCells = new SqliteSchemaCell[cellsOffsets.length];
+    for (int i = 0; i < cellsOffsets.length; i++) {
+        schemaCells[i] = SqliteSchemaCell.fromBytes(databaseFile, cellsOffsets[i]);
+    }
+    return schemaCells;
 }
 
 private static int getDatabaseSchemaCells(RandomAccessFile databaseFile) throws IOException {

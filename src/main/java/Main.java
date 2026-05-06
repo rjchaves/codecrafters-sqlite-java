@@ -23,13 +23,21 @@ void main(String[] args) throws IOException {
         case ".tables" -> findAndPrintTableNames(databaseFilePath);
 
         // we are not building any AST for now we will keep it simple for the test cases
-        case String s when s.contains("SELECT COUNT(*) FROM") -> {
+        case String s when s.contains("select count(*) from") -> {
             String[] s1 = s.split(" ");
             var table = s1[s1.length - 1];
             try (RandomAccessFile databaseFile = new RandomAccessFile(databaseFilePath, "r")) {
                 SqliteSchemaCell[] allSchemaCells = findAllSchemaCells(databaseFile);
-                Optional<SqliteSchemaCell> tableCellReference = Arrays.stream(allSchemaCells).filter(it -> it.schemaRecordData.tblName().equals(table)).findFirst();
-                Optional<Integer> rootPage = tableCellReference.map(it -> it.schemaRecordData.rootPage());
+                Optional<Integer> rootPage = Arrays.stream(allSchemaCells)
+                        .filter(it -> it.schemaRecordData.tblName().equals(table))
+                        .findFirst()
+                        .map(it -> it.schemaRecordData.rootPage());
+                if(rootPage.isEmpty()) return;
+                int rootPageOffset = (rootPage.get() - 1) * getDatabasePageSize(databaseFile);
+                databaseFile.seek(rootPageOffset+3); // skips 1 byte of page type + 2 freeblock offset to get the 2 bytes cell number
+                byte[] numberOfCells = new byte[2];
+                databaseFile.read(numberOfCells);
+                IO.println(Utils.intFromByte(numberOfCells));
             }
         }
 
